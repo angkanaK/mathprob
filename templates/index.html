@@ -1,0 +1,505 @@
+{% extends "base.html" %}
+
+{% block content %}
+<h1 class="display-3 text-center">Math Problem Generator</h1>
+
+<link rel="stylesheet" href="http://ajax.googleapis.com/ajax/libs/jqueryui/1.8.16/themes/base/jquery-ui.css">
+
+<style>
+	/* ปรับปรุงหน้าตา Dropdown */
+	.custom-dropdown-container {
+		z-index: 1000;
+		background: white;
+		border: 2px solid #007bff;
+		border-radius: 8px;
+		padding: 10px;
+		box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
+		font-family: 'Arial', sans-serif;
+	}
+
+	.dropdown-label {
+		display: block;
+		margin-bottom: 5px;
+		font-weight: bold;
+	}
+
+	.custom-dropdown {
+		width: 100%;
+		padding: 8px;
+		font-size: 16px;
+		border: 1px solid #ccc;
+		border-radius: 4px;
+		box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
+		outline: none;
+		cursor: pointer;
+	}
+
+	.custom-dropdown:focus {
+		border-color: #007bff;
+		box-shadow: 0 0 5px rgba(0, 123, 255, 0.5);
+	}
+
+	/* เพิ่มความกว้างของการ์ด */
+	#problem-container {
+		display: flex;
+		flex-direction: column;
+		gap: 20px;
+		max-width: 1000px;
+		/* เพิ่มความกว้างให้การ์ด */
+		margin: 0 auto;
+		padding: 20px;
+	}
+
+	/* Styling for each card */
+	.card {
+		border: 2px solid #007bff;
+		border-radius: 10px;
+		padding: 20px;
+		background-color: #ffffff;
+		box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
+		/* เพิ่มเงาเล็กน้อยเพื่อแยกการ์ด */
+		margin-bottom: 20px;
+		/* เพิ่มระยะห่างด้านล่างของแต่ละการ์ด */
+	}
+
+	/* ขีดเส้นใต้คำที่สามารถแก้ไขได้ */
+	.editable-word {
+		display: inline-block;
+		padding: 2px;
+		cursor: pointer;
+		border-bottom: 2px dotted #007bff;
+		/* ขีดเส้นใต้ด้วยเส้นปะ */
+		font-weight: bold;
+		/* เพิ่มน้ำหนักของข้อความให้โดดเด่น */
+	}
+
+
+	#dropdown-container {
+		z-index: 1000;
+		background: white;
+		border: 1px solid #ccc;
+		box-shadow: 0 2px 5px rgba(0, 0, 0, 0.2);
+		position: absolute;
+		display: none;
+	}
+
+	.save-edit-btn {
+		background-color: #ffc107;
+		/* สีเขียวหรือปรับเป็นสีที่คุณต้องการ */
+		color: black;
+		/* สีข้อความเป็นสีขาว */
+		border: none;
+	}
+
+	.save-edit-btn:hover {
+		background-color: gold;
+		/* สีเข้มขึ้นเมื่อ hover */
+	}
+
+	.symbol-sentence {
+        background-color: #f8f9fa;
+        padding: 10px;
+        border-left: 4px solid #007bff;
+        border-radius: 5px;
+        font-size: 16px;
+        margin-top: 10px;
+        display: inline-block;
+    }
+    .symbol-label {
+        font-weight: bold;
+        color: #007bff;
+        margin-right: 5px;
+    }
+    .symbol-text {
+        color: #333;
+    }
+
+	/* สไตล์สำหรับกล่องแสดงคำตอบ */
+.problem-answer .alert {
+    background-color: #e7f3fe;
+    color: #31708f;
+    border: 1px solid #bce8f1;
+    border-radius: 5px;
+    font-weight: bold;
+    text-align: center;
+}
+
+</style>
+
+<div class="text-center mb-4">
+	<button class="btn btn-primary" id="symbolButton" onclick="showSymbolInput()">กรอกประโยคสัญลักษณ์</button>
+	<button class="btn btn-secondary" id="randomButton" onclick="showRandomInput()">สร้างโจทย์ตามสิ่งที่เลือก</button>
+</div>
+
+<div id="symbolInput" class="container mt-3">
+	<div class="row">
+		<div class="col-md-12">
+			<h2 class="mb-3">กรอกประโยคสัญลักษณ์</h2>
+			<form action="{{ url_for('index') }}" method="post">
+				<div class="input-group mb-3">
+					<input type="text" class="form-control" placeholder="กรุณาใส่ประโยคสัญลักษณ์ (คั่นด้วย , )"
+						name="symsen">
+					<select class="form-select ms-2" name="noun_category" onchange="updateSelectedType()">
+						<option value="random" selected>สุ่มประเภท</option>
+						<option value="object">สิ่งของ</option>
+						<option value="fruit">ผลไม้</option>
+						<option value="vehicle">ยานพาหนะ</option>
+						<option value="animal">สัตว์</option>
+						<option value="plant">พืช</option>
+						<option value="food">อาหาร</option>
+					</select>
+					<button class="btn btn-primary ms-2" type="submit">สร้างโจทย์</button>
+				</div>
+
+				<!-- แสดงประเภทที่เลือกด้านล่าง input-group ด้วยสไตล์ที่เป็นเอกลักษณ์ -->
+				<div id="selectedType" class="text-muted text-center mt-2"
+					style="font-weight: bold; font-size: 16px; padding: 10px; border: 1px solid #007bff; border-radius: 5px; display: none;">
+					คุณเลือกประเภท: <span id="typeText">สุ่มประเภท</span>
+				</div>
+			</form>
+			{% if error %}
+			<div class="alert alert-danger mt-3">
+				<strong>ข้อผิดพลาด:</strong> {{ error }}
+			</div>
+			{% endif %}
+		</div>
+	</div>
+</div>
+
+
+<div id="randomInput" class="container mt-3 d-none">
+	<div class="row">
+		<div class="col-md-12">
+			<h2 class="mb-3">สร้างโจทย์ตามสิ่งที่เลือก</h2>
+			<form action="{{ url_for('index') }}" method="post">
+				<div class="input-group mb-3">
+					<select class="form-select" name="math_symbol">
+						<option value="+" selected>บวก (+)</option>
+						<option value="-">ลบ (-)</option>
+						<option value="*">คูณ (*)</option>
+						<option value="/">หาร (/)</option>
+					</select>
+
+					<select class="form-select" name="digit_choice">
+						<option value="หน่วย" selected>หลักหน่วย</option>
+						<option value="สิบ">หลักสิบ</option>
+						<option value="ร้อย">หลักร้อย</option>
+						<option value="พัน">หลักพัน</option>
+					</select>
+
+					<select class="form-select" name="noun_category">
+						<option value="random" selected>สุ่มประเภท</option>
+						<option value="object">สิ่งของ</option>
+						<option value="fruit">ผลไม้</option>
+						<option value="vehicle">ยานพาหนะ</option>
+						<option value="animal">สัตว์</option>
+						<option value="plant">พืช</option>
+						<option value="food">อาหาร</option>
+					</select>
+
+					<select class="form-select" name="problem_count">
+						<option value="1" selected>1 ข้อ</option>
+						<option value="2">2 ข้อ</option>
+						<option value="3">3 ข้อ</option>
+						<option value="4">4 ข้อ</option>
+						<option value="5">5 ข้อ</option>
+					</select>
+
+					<button class="btn btn-primary" type="submit">สร้างโจทย์</button>
+				</div>
+			</form>
+		</div>
+	</div>
+</div>
+
+{% if updated_problems %}
+<div class="d-flex justify-content-between align-items-center mb-3">
+	<h3>โจทย์ที่ได้</h3>
+	<div>
+		<form action="{{ url_for('save_all') }}" method="post" class="d-inline">
+			<button class="btn btn-warning" type="submit">บันทึกโจทย์ทั้งหมด</button>
+		</form>
+		<form action="{{ url_for('download_pdf') }}" method="post" class="d-inline">
+			<button class="btn btn-success" type="submit">บันทึกเป็น PDF</button>
+		</form>
+		<form action="{{ url_for('download_docx') }}" method="post" class="d-inline">
+			<button class="btn btn-primary" type="submit">บันทึกเป็น DOCX</button>
+		</form>
+		<form action="{{ url_for('clear_all') }}" method="post" class="d-inline">
+			<button class="btn btn-danger" type="submit">ลบโจทย์ทั้งหมด</button>
+		</form>
+	</div>
+</div>
+
+<div id="problem-container">
+	{% for idx in range(updated_problems|length) %}
+	<div class="card mb-3">
+		<div class="card-body d-flex align-items-center justify-content-between">
+			<div class="problem-text-container">
+				<p id="inline-ans-{{ idx }}" data-idx="{{ idx }}" class="problem-text editable">
+					{{ updated_problems[idx]|safe }}
+				</p>
+
+				<!-- เงื่อนไข: แสดง "ประโยคสัญลักษณ์" เฉพาะในกรณีที่เป็นโจทย์แบบ symsentence -->
+				{% if problem_types[idx] == 'symsentence' and parameters[idx] is defined and parameters[idx].symsentence is defined %}
+				<div class="text-muted mt-2">
+					<strong>ประโยคสัญลักษณ์:</strong> {{ parameters[idx].symsentence }}
+				</div>
+				{% endif %}
+			</div>
+
+			<div class="d-flex align-items-center">
+				<button class="btn btn-info btn-sm me-2" type="button" onclick="showAnswer('{{ idx }}')">แสดงคำตอบ</button>
+			
+				<button class="btn save-edit-btn btn-sm ms-2" type="button" onclick="saveEdit('{{ idx }}')">บันทึกการแก้ไข</button>
+			
+				{% if problem_types[idx] == 'symsentence' and parameters[idx] is defined and parameters[idx].symsentence is defined
+				%}
+				<button class="btn btn-success btn-sm ms-2" type="button"
+					onclick="logAndRegenSingleProblem({{ idx }}, '{{ problem_types[idx] }}', '{{ parameters[idx].symsentence }}', '{{ parameters[idx].noun_category }}')">
+					สร้างโจทย์อีกครั้ง
+				</button>
+				{% endif %}
+			
+				<form action="{{ url_for('delete') }}" method="post" class="d-inline ms-2">
+					<input type="hidden" name="problem_to_delete" value="{{ updated_problems[idx] }}">
+					<button class="btn btn-danger btn-sm" type="submit">ลบ</button>
+				</form>
+			</div>
+		</div>
+		<h4 class="problem-answer text-center mt-3" id="answer_{{ idx }}" style="display: none;">
+			<div class="alert alert-info" style="font-size: 18px; margin: 0; padding: 10px;">
+				<strong>คำตอบ:</strong> {{ answers[idx] }} {{ units[idx] }}
+			</div>
+		</h4>
+	</div>
+	{% endfor %}
+</div>
+{% endif %}
+
+
+<div id="dropdown-container" style="display: none; position: absolute; padding: 10px; border-radius: 5px;">
+	<p id="dropdown-info" style="margin-bottom: 10px; font-weight: bold;"></p>
+	<label for="dropdown-select" style="display: block; margin-bottom: 5px;">คำที่ต้องการเปลี่ยนเป็น:</label>
+	<select id="dropdown-select" onchange="selectWord()" style="width: 100%; padding: 5px;">
+		<!-- รายการคำจะถูกเพิ่มที่นี่ -->
+	</select>
+</div>
+
+
+
+
+
+<script>
+	let currentTargetElement = null;
+
+	document.addEventListener('click', function (event) {
+		if (event.target.classList.contains('editable-word')) {
+			showDropdown(event, event.target.getAttribute('data-type'), event.target);
+		} else {
+			document.getElementById('dropdown-container').style.display = 'none';
+		}
+	});
+
+	function showDropdown(event, type, targetElement) {
+		const dropdownContainer = document.getElementById('dropdown-container');
+		const dropdownSelect = document.getElementById('dropdown-select');
+		const dropdownInfo = document.getElementById('dropdown-info');
+
+		// เก็บ targetElement เพื่อใช้ในการแทนที่คำภายหลัง
+		currentTargetElement = targetElement;
+
+		// ใช้ getBoundingClientRect เพื่อหาตำแหน่งของคำที่ถูกคลิก
+		const rect = targetElement.getBoundingClientRect();
+
+		// ปรับตำแหน่งของ dropdown ให้อยู่ข้างๆคำที่ถูกคลิก
+		dropdownContainer.style.top = `${window.scrollY + rect.top + rect.height}px`;
+		dropdownContainer.style.left = `${window.scrollX + rect.left}px`;
+		dropdownContainer.style.display = 'block';
+
+		dropdownSelect.setAttribute('data-type', type);
+
+		// ตั้งค่าข้อความใน dropdown-info
+		dropdownInfo.textContent = `คำที่คุณต้องการจะเปลี่ยนคือ: (${targetElement.textContent})`;
+
+		loadWords(type);
+		event.stopPropagation();
+	}
+
+
+	function loadWords(type) {
+		fetch(`/get_words?type=${type}`)
+			.then(response => response.json())
+			.then(data => {
+				const selectElement = document.getElementById('dropdown-select');
+				selectElement.innerHTML = '';
+				data.forEach(word => {
+					const option = document.createElement('option');
+					option.value = word;
+					option.textContent = word;
+					selectElement.appendChild(option);
+				});
+			})
+			.catch(error => console.error('Error loading words:', error));
+	}
+
+	function selectWord() {
+		const dropdownSelect = document.getElementById('dropdown-select');
+		const selectedWord = dropdownSelect.value;
+
+		// ตรวจสอบว่ามี targetElement ที่เก็บไว้หรือไม่
+		if (currentTargetElement) {
+			currentTargetElement.textContent = selectedWord;
+		}
+
+		// ปิด dropdown หลังจากเลือกคำแล้ว
+		document.getElementById('dropdown-container').style.display = 'none';
+	}
+
+
+	function showSymbolInput() {
+		document.getElementById('symbolInput').classList.remove('d-none');
+		document.getElementById('randomInput').classList.add('d-none');
+	}
+
+	function showRandomInput() {
+		document.getElementById('randomInput').classList.remove('d-none');
+		document.getElementById('symbolInput').classList.add('d-none');
+	}
+
+	function showAnswer(idx) {
+		const answerElement = document.getElementById('answer_' + idx);
+		answerElement.style.display = (answerElement.style.display === "none") ? "block" : "none";
+	}
+
+	function saveEdit(idx) {
+		const updatedText = document.querySelector(`#inline-ans-${idx}`).innerHTML;
+
+		fetch('/updateAnswer', {
+			method: 'POST',
+			headers: {
+				'Content-Type': 'application/json'
+			},
+			body: JSON.stringify({ idx: idx, txt: updatedText })
+		})
+			.then(response => response.json())
+			.then(data => {
+				if (data.success) {
+					alert('บันทึกการแก้ไขสำเร็จ!');
+				} else {
+					alert(`เกิดข้อผิดพลาดในการบันทึกการแก้ไข: ${data.message}`);
+				}
+			})
+			.catch(error => console.error('Error:', error));
+	}
+
+	function logAndRegenSingleProblem(index, problemType, mathSymbol, digitChoice, nounCategory, symsentence = null) {
+		// ตรวจสอบประเภทโจทย์
+		if (problemType !== 'symsentence') {
+			alert('การรีเจนทำได้เฉพาะโจทย์ประเภทประโยคสัญลักษณ์');
+			return;
+		}
+
+		// Log เพื่อเช็คค่าและพารามิเตอร์ก่อนเรียกใช้ regenSingleProblem
+		console.log("Index:", index);
+		console.log("Problem Type:", problemType);
+		console.log("Symbolic Sentence:", symsentence);
+		console.log("Noun Category:", nounCategory);
+
+		// เรียกใช้ฟังก์ชัน regenSingleProblem
+		regenSingleProblem(index, problemType, nounCategory, symsentence);
+	}
+
+	function regenSingleProblem(index, problemType, nounCategory, symsentence) {
+		console.log("Regen clicked for index:", index);
+		console.log("Problem Type being sent:", problemType);
+		console.log("Noun Category being sent:", nounCategory);
+		console.log("Symbolic Sentence being sent:", symsentence);
+
+		// สร้าง JSON body ที่จะส่งไปยังเซิร์ฟเวอร์
+		const bodyData = {
+			'index': index,
+			'problem_type': problemType,
+			'noun_category': nounCategory,
+			'symsentence': symsentence
+		};
+
+		fetch('/regen_single_problem', {
+			method: 'POST',
+			headers: {
+				'Content-Type': 'application/json'
+			},
+			body: JSON.stringify(bodyData)
+		})
+			.then(response => response.json())
+			.then(data => {
+				console.log("Regen response:", data); // ตรวจสอบข้อมูลที่ได้รับจากเซิร์ฟเวอร์
+
+				if (data.updated_problem) {
+					// อัปเดตโจทย์และคำตอบบนหน้า
+					const problemCard = document.getElementById(`inline-ans-${index}`);
+					problemCard.innerHTML = data.updated_problem;
+
+					const answerElement = document.getElementById(`answer_${index}`);
+					answerElement.innerHTML = `ตอบ: ${data.answer} ${data.unit}`;
+
+					// แจ้งเตือนการอัปเดตสำเร็จ
+					alert('โจทย์ถูกสร้างใหม่เรียบร้อย!');
+				} else {
+					alert('การรีเจนโจทย์ล้มเหลว กรุณาลองอีกครั้ง');
+				}
+			})
+			.catch(error => {
+				console.error('Error during regen:', error);
+				alert('เกิดข้อผิดพลาดขณะรีเจนโจทย์');
+			});
+	}
+
+	function updateSelectedType() {
+			const selectedType = document.querySelector('select[name="noun_category"]').value;
+			const typeMapping = {
+				"random": "สุ่มประเภท",
+				"object": "สิ่งของ",
+				"fruit": "ผลไม้",
+				"vehicle": "ยานพาหนะ",
+				"animal": "สัตว์",
+				"plant": "พืช",
+				"food": "อาหาร"
+			};
+			document.getElementById('typeText').innerText = typeMapping[selectedType];
+		}
+
+		function showTypeAfterSubmit() {
+			updateSelectedType();
+			document.getElementById('selectedType').style.display = 'block';
+		}
+
+	// เพิ่ม event listener ให้ปุ่มสร้างโจทย์
+	document.querySelector('button[type="submit"]').addEventListener('click', function (event) {
+		showTypeAfterSubmit();
+	});
+
+
+	// ป้องกันไม่ให้ dropdown หายไปเมื่อคลิกใน dropdown เอง
+	document.getElementById('dropdown-container').addEventListener('click', function (event) {
+		event.stopPropagation();
+	});
+
+	// เพิ่ม event listener ให้คำที่สามารถแก้ไขได้ทั้งหมด
+	document.addEventListener('DOMContentLoaded', () => {
+		const editableWords = document.querySelectorAll('.editable-word');
+		editableWords.forEach(word => {
+			word.addEventListener('click', (event) => {
+				showDropdown(event, word.getAttribute('data-type'), word);
+			});
+		});
+	});
+</script>
+
+<div class="alert alert-info text-center"
+	style="font-size: 18px; background-color: #d0ebff; max-width: 1300px; margin: 0 auto;">
+	เคล็ดลับ: ผู้ใช้สามารถกดที่คำที่สามารถแก้ไขได้เพื่อเปลี่ยนแปลง และบันทึกการแก้ไขเมื่อแก้ไขเสร็จ
+</div>
+
+
+{% endblock %}

@@ -1,0 +1,614 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="container">
+    <h1 class="mt-5">หน้าจัดการฐานข้อมูล</h1>
+
+    <!-- Flash Messages -->
+    {% with messages = get_flashed_messages(with_categories=true) %}
+    {% if messages %}
+    <div class="mt-4">
+        {% for category, message in messages %}
+        <div class="alert alert-{{ category }} alert-dismissible fade show" role="alert">
+            {{ message }}
+            <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+        </div>
+        {% endfor %}
+    </div>
+    {% endif %}
+    {% endwith %}
+
+    <ul class="nav nav-tabs" id="adminTab" role="tablist">
+        <li class="nav-item" role="presentation">
+            <button class="nav-link active" id="word_problem-tab" data-bs-toggle="tab" data-bs-target="#word_problem"
+                type="button" role="tab" aria-controls="word_problem" aria-selected="true">Pattern</button>
+        </li>
+        <li class="nav-item" role="presentation">
+            <button class="nav-link" id="word_nouns1-tab" data-bs-toggle="tab" data-bs-target="#word_nouns1" type="button"
+                role="tab" aria-controls="word_nouns1" aria-selected="false">คำนาม</button>
+        </li>
+        <li class="nav-item" role="presentation">
+            <button class="nav-link" id="word_verb-tab" data-bs-toggle="tab" data-bs-target="#word_verb" type="button"
+                role="tab" aria-controls="word_verb" aria-selected="false">กริยา</button>
+        </li>
+        <li class="nav-item" role="presentation">
+            <button class="nav-link" id="word_object-tab" data-bs-toggle="tab" data-bs-target="#word_object" type="button"
+                role="tab" aria-controls="word_object" aria-selected="false">กรรม</button>
+        </li>
+        <li class="nav-item" role="presentation">
+            <button class="nav-link" id="word_classifier-tab" data-bs-toggle="tab" data-bs-target="#word_classifier"
+                type="button" role="tab" aria-controls="word_classifier" aria-selected="false">ลักษณะนาม</button>
+        </li>
+    </ul>
+
+
+    <!-- Tab content -->
+    <div class="tab-content mt-4" id="adminTabContent">
+
+        <!-- Tab สำหรับจัดการลักษณะนาม -->
+        <div class="tab-pane fade" id="word_classifier" role="tabpanel" aria-labelledby="word_classifier-tab">
+            <h2 class="mt-4">เพิ่มลักษณะนามใหม่</h2>
+            <form action="/admin/word_classifier" method="POST" class="mt-3">
+                <input type="hidden" name="add_word_classifier" value="true">
+                <div class="row mb-3">
+                    <div class="col-md-4">
+                        <label for="name" class="form-label">ลักษณะนาม:</label>
+                        <input type="text" id="name" name="name" class="form-control" required>
+                    </div>
+                    <div class="col-md-4">
+                        <label for="type" class="form-label">ประเภท:</label>
+                        <select id="type" name="type" class="form-select" required>
+                            <option value="fruit">ผลไม้</option>
+                            <option value="object">สิ่งของ</option>
+                            <option value="food">อาหาร</option>
+                            <option value="animal">สัตว์</option>
+                            <option value="plant">พืช</option>
+                            <option value="vehicle">ยานพาหนะ</option>
+                        </select>
+                    </div>
+                    <div class="col-md-4">
+                        <label for="mathsym" class="form-label">สัญลักษณ์ทางคณิตศาสตร์:</label>
+                        <select id="mathsym" name="mathsym" class="form-select" required>
+                            <option value="multiply">คูณ (*)</option>
+                            <option value="divide">หาร (/)</option>
+                        </select>
+                    </div>
+                </div>
+                <button type="submit" class="btn btn-primary">เพิ่มลักษณะนาม</button>
+            </form>
+
+            <!-- ตารางแสดงลักษณะนาม -->
+            <h2 class="mt-5">ดูตารางลักษณะนาม</h2>
+            <div id="classifier-table-container">
+                <table class="table table-bordered table-striped table-hover mt-4">
+                    <thead style="background-color: #007bff; color: white;">
+                        <tr>
+                            <th>ลำดับ</th>
+                            <th>ลักษณะนาม</th>
+                            <th>ประเภท</th>
+                            <th>สัญลักษณ์ทางคณิตศาสตร์</th>
+                            <th>การดำเนินการ</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for classifier in classifiers %}
+                        <tr id="classifier-row-{{ classifier.id }}">
+                            <td>{{ classifier.id }}</td>
+                            <td>{{ classifier.classifier }}</td>
+                            <td>{{ classifier.type }}</td>
+                            <td>{{ classifier.mathsym }}</td>
+                            <td>
+                                <button class="btn btn-warning btn-sm"
+                                    onclick="editClassifier('{{ classifier.id }}', '{{ classifier.classifier }}', '{{ classifier.type }}', '{{ classifier.mathsym }}')">แก้ไข</button>
+                                <form action="/admin/word_classifier/delete" method="POST" style="display:inline;">
+                                    <input type="hidden" name="classifier_id" value="{{ classifier.id }}">
+                                    <button type="submit" class="btn btn-danger btn-sm">ลบ</button>
+                                </form>
+                            </td>
+                        </tr>
+                        <tr id="classifier-edit-row-{{ classifier.id }}" style="display: none;">
+                            <td colspan="5">
+                                <form action="/admin/word_classifier/edit/{{ classifier.id }}" method="POST">
+                                    <div class="row mb-3">
+                                        <div class="col-md-4">
+                                            <label for="name-{{ classifier.id }}" class="form-label">ลักษณะนาม:</label>
+                                            <input type="text" id="name-{{ classifier.id }}" name="name"
+                                                class="form-control" value="{{ classifier.classifier }}" required>
+                                        </div>
+                                        <div class="col-md-4">
+                                            <label for="type-{{ classifier.id }}" class="form-label">ประเภท:</label>
+                                            <select id="type-{{ classifier.id }}" name="type" class="form-select"
+                                                required>
+                                                <option value="fruit" {% if classifier.type=='fruit' %}selected{% endif
+                                                    %}>ผลไม้</option>
+                                                <option value="object" {% if classifier.type=='object' %}selected{%
+                                                    endif %}>สิ่งของ</option>
+                                                <option value="food" {% if classifier.type=='food' %}selected{% endif
+                                                    %}>อาหาร</option>
+                                                <option value="animal" {% if classifier.type=='animal' %}selected{%
+                                                    endif %}>สัตว์</option>
+                                                <option value="plant" {% if classifier.type=='plant' %}selected{% endif
+                                                    %}>พืช</option>
+                                                <option value="vehicle" {% if classifier.type=='vehicle' %}selected{%
+                                                    endif %}>ยานพาหนะ</option>
+                                            </select>
+                                        </div>
+                                        <div class="col-md-4">
+                                            <label for="mathsym-{{ classifier.id }}"
+                                                class="form-label">สัญลักษณ์ทางคณิตศาสตร์:</label>
+                                            <select id="mathsym-{{ classifier.id }}" name="mathsym" class="form-select"
+                                                required>
+                                                <option value="multiply" {% if classifier.mathsym=='multiply'
+                                                    %}selected{% endif %}>คูณ (*)</option>
+                                                <option value="divide" {% if classifier.mathsym=='divide' %}selected{%
+                                                    endif %}>หาร (/)</option>
+                                            </select>
+                                        </div>
+                                    </div>
+                                    <button type="submit" class="btn btn-primary">บันทึกการแก้ไข</button>
+                                    <button type="button" class="btn btn-secondary"
+                                        onclick="cancelEditClassifier('{{ classifier.id }}')">ยกเลิก</button>
+                                </form>
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+        <!-- Tab สำหรับจัดการโจทย์คณิตศาสตร์ -->
+        <div class="tab-pane fade" id="word_problem" role="tabpanel" aria-labelledby="word_problem-tab">
+            <h2 class="mt-4">เพิ่มPattern</h2>
+            <form action="/admin/add_math_problem" method="POST" class="mt-3" id="mathprob-form">
+                <input type="hidden" name="add_problem" value="true">
+                <div class="row mb-3">
+                    <div class="col-md-4">
+                        <label for="pattern" class="form-label">Pattern:</label>
+                        <textarea id="pattern" name="pattern" rows="1" class="form-control" required></textarea>
+                    </div>
+                    <div class="col-md-4">
+                        <label for="type" class="form-label">ประเภท:</label>
+                        <select id="type" name="type" class="form-select" required>
+                            <option value="fruit">ผลไม้</option>
+                            <option value="object">สิ่งของ</option>
+                            <option value="food">อาหาร</option>
+                            <option value="animal">สัตว์</option>
+                            <option value="plant">พืช</option>
+                            <option value="vehicle">ยานพาหนะ</option>
+                        </select>
+                    </div>
+                    <div class="col-md-4">
+                        <label for="mathsym" class="form-label">สัญลักษณ์ทางคณิตศาสตร์:</label>
+                        <select id="mathsym" name="mathsym" class="form-select" required>
+                            <option value="add">บวก (+)</option>
+                            <option value="minus">ลบ (-)</option>
+                            <option value="multiply">คูณ (*)</option>
+                            <option value="divide">หาร (/)</option>
+                        </select>
+                    </div>
+                </div>
+                <button type="submit" class="btn btn-primary" id="mathprob-submit">เพิ่มPattern</button>
+            </form>
+
+            <!-- ตารางแสดงโจทย์คณิตศาสตร์ -->
+            <h2 class="mt-5">ดูตารางPattern</h2>
+            <div id="problem-table-container">
+                <table class="table table-bordered table-striped table-hover mt-4">
+                    <thead style="background-color: #007bff; color: white;">
+                        <tr>
+                            <th>ลำดับ</th>
+                            <th>โจทย์</th>
+                            <th>ประเภท</th>
+                            <th>สัญลักษณ์ทางคณิตศาสตร์</th>
+                            <th>การดำเนินการ</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for problem in problems %}
+                        <tr id="problem-row-{{ problem.id }}">
+                            <td>{{ problem.id }}</td>
+                            <td>{{ problem.pattern }}</td>
+                            <td>{{ problem.type }}</td>
+                            <td>{{ problem.mathsym }}</td>
+                            <td>
+                                <button class="btn btn-warning btn-sm"
+                                    onclick="editProblem('{{ problem.id }}', '{{ problem.pattern }}', '{{ problem.type }}', '{{ problem.mathsym }}')">แก้ไข</button>
+                                <form action="/admin/delete_problem" method="POST" style="display:inline;">
+                                    <input type="hidden" name="problem_id" value="{{ problem.id }}">
+                                    <button type="submit" class="btn btn-danger btn-sm">ลบ</button>
+                                </form>
+                            </td>
+                        </tr>
+                        <tr id="problem-edit-row-{{ problem.id }}" style="display: none;">
+                            <td colspan="5">
+                                <form action="/admin/edit_problem/{{ problem.id }}" method="POST">
+                                    <div class="row mb-3">
+                                        <div class="col-md-4">
+                                            <label for="pattern-{{ problem.id }}"
+                                                class="form-label">Pattern:</label>
+                                            <textarea id="pattern-{{ problem.id }}" name="pattern" rows="1"
+                                                class="form-control" required>{{ problem.pattern }}</textarea>
+                                        </div>
+                                        <div class="col-md-4">
+                                            <label for="type-{{ problem.id }}" class="form-label">ประเภท:</label>
+                                            <select id="type-{{ problem.id }}" name="type" class="form-select" required>
+                                                <option value="fruit" {% if problem.type=='fruit' %}selected{% endif %}>
+                                                    ผลไม้</option>
+                                                <option value="object" {% if problem.type=='object' %}selected{% endif
+                                                    %}>สิ่งของ</option>
+                                                <option value="food" {% if problem.type=='food' %}selected{% endif %}>
+                                                    อาหาร</option>
+                                                <option value="animal" {% if problem.type=='animal' %}selected{% endif
+                                                    %}>สัตว์</option>
+                                                <option value="plant" {% if problem.type=='plant' %}selected{% endif %}>
+                                                    พืช</option>
+                                                <option value="vehicle" {% if problem.type=='vehicle' %}selected{% endif
+                                                    %}>ยานพาหนะ</option>
+                                            </select>
+                                        </div>
+                                        <div class="col-md-4">
+                                            <label for="mathsym-{{ problem.id }}"
+                                                class="form-label">สัญลักษณ์ทางคณิตศาสตร์:</label>
+                                            <select id="mathsym-{{ problem.id }}" name="mathsym" class="form-select"
+                                                required>
+                                                <option value="add" {% if problem.mathsym=='add' %}selected{% endif %}>
+                                                    บวก (+)</option>
+                                                <option value="minus" {% if problem.mathsym=='minus' %}selected{% endif
+                                                    %}>ลบ (-)</option>
+                                                <option value="multiply" {% if problem.mathsym=='multiply' %}selected{%
+                                                    endif %}>คูณ (*)</option>
+                                                <option value="divide" {% if problem.mathsym=='divide' %}selected{%
+                                                    endif %}>หาร (/)</option>
+                                            </select>
+                                        </div>
+                                    </div>
+                                    <button type="submit" class="btn btn-primary">บันทึกการแก้ไข</button>
+                                    <button type="button" class="btn btn-secondary"
+                                        onclick="cancelEditProblem('{{ problem.id }}')">ยกเลิก</button>
+                                </form>
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+        <!-- Tab สำหรับจัดการ Nouns1 -->
+        <div class="tab-pane fade show active" id="word_nouns1" role="tabpanel" aria-labelledby="word_nouns1-tab">
+            <h2 class="mt-4">เพิ่ม Noun ใหม่</h2>
+            <form action="/admin/word_nouns1" method="POST" class="mt-3">
+                <input type="hidden" name="add_word_nouns1" value="true">
+                <div class="row mb-3">
+                    <div class="col-md-6">
+                        <label for="nouns" class="form-label">คำนาม:</label>
+                        <input type="text" id="nouns" name="nouns" class="form-control" required>
+                    </div>
+                    <div class="col-md-6">
+                        <label for="type" class="form-label">ประเภท:</label>
+                        <select id="type" name="type" class="form-select" required>
+                            <option value="all">ใช้ได้ทุกสัญลักษณ์</option>
+                            <option value="divide">หาร (/)</option>
+                        </select>
+                    </div>
+                </div>
+                <button type="submit" class="btn btn-primary">เพิ่มคำนาม</button>
+            </form>
+        
+            <!-- ตารางแสดงข้อมูลใน word_nouns1 -->
+            <h2 class="mt-5">ดูตารางคำนาม</h2>
+            <div id="noun-table-container">
+                <table class="table table-bordered table-striped table-hover mt-4">
+                    <thead style="background-color: #007bff; color: white;">
+                        <tr>
+                            <th>ลำดับ</th>
+                            <th>คำนาม</th>
+                            <th>ประเภท</th>
+                            <th>การดำเนินการ</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for noun in nouns1 %}
+                        <tr id="row-{{ noun.id }}">
+                            <td>{{ noun.id }}</td>
+                            <td>{{ noun.nouns }}</td>
+                            <td>{{ noun.type }}</td>
+                            <td>
+                                <button class="btn btn-warning btn-sm"
+                                    onclick="editNoun('{{ noun.id }}', '{{ noun.nouns }}', '{{ noun.type }}')">แก้ไข</button>
+                                <form action="/admin/word_nouns1/delete" method="POST" style="display:inline;">
+                                    <input type="hidden" name="noun_id" value="{{ noun.id }}">
+                                    <button type="submit" class="btn btn-danger btn-sm">ลบ</button>
+                                </form>
+                            </td>
+                        </tr>
+                        <tr id="edit-row-{{ noun.id }}" style="display: none;">
+                            <td colspan="4">
+                                <form action="/admin/word_nouns1/edit/{{ noun.id }}" method="POST">
+                                    <div class="row mb-3">
+                                        <div class="col-md-6">
+                                            <label for="nouns-{{ noun.id }}" class="form-label">คำนาม:</label>
+                                            <input type="text" id="nouns-{{ noun.id }}" name="nouns" class="form-control"
+                                                value="{{ noun.nouns }}" required>
+                                        </div>
+                                        <div class="col-md-6">
+                                            <label for="type-{{ noun.id }}" class="form-label">ประเภท:</label>
+                                            <select id="type-{{ noun.id }}" name="type" class="form-select" required>
+                                                <option value="all" {% if noun.type=='all' %}selected{% endif %}>ใช้ได้ทุกสัญลักษณ์
+                                                </option>
+                                                <option value="divide" {% if noun.type=='divide' %}selected{% endif %}>
+                                                    หาร (/)</option>
+                                            </select>
+                                        </div>
+                                    </div>
+                                    <button type="submit" class="btn btn-primary">บันทึกการแก้ไข</button>
+                                    <button type="button" class="btn btn-secondary"
+                                        onclick="cancelEditNoun({{ noun.id }})">ยกเลิก</button>
+                                </form>
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+        <div class="tab-pane fade " id="word_verb" role="tabpanel" aria-labelledby="word_verb-tab">
+            <h2 class="mt-4">เพิ่มคำกริยา</h2>
+            <form action="/admin/word_verb" method="POST" class="mt-3">
+                <input type="hidden" name="add_word_verb" value="true">
+                <div class="row mb-3">
+                    <div class="col-md-6">
+                        <label for="verb" class="form-label">คำกริยา:</label>
+                        <input type="text" id="verb" name="verb" class="form-control" required>
+                    </div>
+                    <div class="col-md-6">
+                        <label for="mathsym" class="form-label">สัญลักษณ์ทางคณิตศาสตร์:</label>
+                        <select id="mathsym" name="mathsym" class="form-select" required>
+                            <option value="add">บวก (+)</option>
+                            <option value="minus">ลบ (-)</option>
+                            <option value="multiply">คูณ (*)</option>
+                            <option value="divide">หาร (/)</option>
+                        </select>
+                    </div>
+                </div>
+                <button type="submit" class="btn btn-primary">เพิ่มคำกริยา</button>
+            </form>
+        
+            <!-- ตารางแสดงข้อมูลใน word_verb -->
+            <h2 class="mt-5">ดูตารางคำกริยา</h2>
+            <div id="verb-table-container">
+                <table class="table table-bordered table-striped table-hover mt-4">
+                    <thead style="background-color: #007bff; color: white;">
+                        <tr>
+                            <th>ลำดับ</th>
+                            <th>คำกริยา</th>
+                            <th>สัญลักษณ์ทางคณิตศาสตร์</th>
+                            <th>การดำเนินการ</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for verb in verbs %}
+                        <tr id="verb-row-{{ verb.id }}">
+                            <td>{{ verb.id }}</td>
+                            <td>{{ verb.verb }}</td>
+                            <td>{{ verb.mathsym }}</td>
+                            <td>
+                                <button class="btn btn-warning btn-sm"
+                                    onclick="editVerb('{{ verb.id }}', '{{ verb.verb }}', '{{ verb.mathsym }}')">แก้ไข</button>
+                                <form action="/admin/word_verb/delete" method="POST" style="display:inline;">
+                                    <input type="hidden" name="verb_id" value="{{ verb.id }}">
+                                    <button type="submit" class="btn btn-danger btn-sm">ลบ</button>
+                                </form>
+                            </td>
+                        </tr>
+                        <tr id="verb-edit-row-{{ verb.id }}" style="display: none;">
+                            <td colspan="4">
+                                <form action="/admin/word_verb/edit/{{ verb.id }}" method="POST">
+                                    <div class="row mb-3">
+                                        <div class="col-md-6">
+                                            <label for="verb-{{ verb.id }}" class="form-label">คำกริยา:</label>
+                                            <input type="text" id="verb-{{ verb.id }}" name="verb" class="form-control"
+                                                value="{{ verb.verb }}" required>
+                                        </div>
+                                        <div class="col-md-6">
+                                            <label for="mathsym-{{ verb.id }}"
+                                                class="form-label">สัญลักษณ์ทางคณิตศาสตร์:</label>
+                                            <select id="mathsym-{{ verb.id }}" name="mathsym" class="form-select" required>
+                                                <option value="add" {% if verb.mathsym=='add' %}selected{% endif %}>บวก (+)
+                                                </option>
+                                                <option value="minus" {% if verb.mathsym=='minus' %}selected{% endif %}>ลบ (-)
+                                                </option>
+                                                <option value="multiply" {% if verb.mathsym=='multiply' %}selected{% endif %}>
+                                                    คูณ (*)</option>
+                                                <option value="divide" {% if verb.mathsym=='divide' %}selected{% endif %}>หาร
+                                                    (/)</option>
+                                            </select>
+                                        </div>
+                                    </div>
+                                    <button type="submit" class="btn btn-primary">บันทึกการแก้ไข</button>
+                                    <button type="button" class="btn btn-secondary"
+                                        onclick="cancelEditVerb('{{ verb.id }}')">ยกเลิก</button>
+                                </form>
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+<!-- Tab สำหรับจัดการ Object -->
+<div class="tab-pane fade " id="word_object" role="tabpanel" aria-labelledby="word_object-tab">
+    <h2 class="mt-4">เพิ่มกรรม</h2>
+    <form action="/admin/word_object" method="POST" class="mt-3">
+        <input type="hidden" name="add_word_object" value="true">
+        <div class="row mb-3">
+            <div class="col-md-6">
+                <label for="nouns" class="form-label">กรรม:</label>
+                <input type="text" id="nouns" name="nouns" class="form-control" required>
+            </div>
+            <div class="col-md-6">
+                <label for="type" class="form-label">ประเภท:</label>
+                <select id="type" name="type" class="form-select" required>
+                    <option value="fruit">ผลไม้</option>
+                    <option value="object">สิ่งของ</option>
+                    <option value="food">อาหาร</option>
+                    <option value="animal">สัตว์</option>
+                    <option value="plant">พืช</option>
+                    <option value="vehicle">ยานพาหนะ</option>
+                </select>
+            </div>
+        </div>
+        <button type="submit" class="btn btn-primary">เพิ่มกรรม</button>
+    </form>
+
+    <!-- ตารางแสดงข้อมูลใน word_object -->
+    <h2 class="mt-5">ดูตารางกรรม</h2>
+    <div id="object-table-container">
+        <table class="table table-bordered table-striped table-hover mt-4">
+            <thead style="background-color: #007bff; color: white;">
+                <tr>
+                    <th>ลำดับ</th>
+                    <th>ชื่อวัตถุ</th>
+                    <th>ประเภท</th>
+                    <th>การดำเนินการ</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for obj in objects %}
+                <tr id="object-row-{{ obj.id }}">
+                    <td>{{ obj.id }}</td>
+                    <td>{{ obj.nouns }}</td>
+                    <td>{{ obj.type }}</td>
+                    <td>
+                        <button class="btn btn-warning btn-sm"
+                            onclick="editObject('{{ obj.id }}', '{{ obj.nouns }}', '{{ obj.type }}')">แก้ไข</button>
+                        <form action="/admin/word_object/delete" method="POST" style="display:inline;">
+                            <input type="hidden" name="object_id" value="{{ obj.id }}">
+                            <button type="submit" class="btn btn-danger btn-sm">ลบ</button>
+                        </form>
+                    </td>
+                </tr>
+                <tr id="object-edit-row-{{ obj.id }}" style="display: none;">
+                    <td colspan="4">
+                        <form action="/admin/word_object/edit/{{ obj.id }}" method="POST">
+                            <div class="row mb-3">
+                                <div class="col-md-6">
+                                    <label for="nouns-{{ obj.id }}" class="form-label">กรรม:</label>
+                                    <input type="text" id="nouns-{{ obj.id }}" name="nouns" class="form-control"
+                                        value="{{ obj.nouns }}" required>
+                                </div>
+                                <div class="col-md-6">
+                                    <label for="type-{{ obj.id }}" class="form-label">ประเภท:</label>
+                                    <select id="type-{{ obj.id }}" name="type" class="form-select" required>
+                                        <option value="fruit" {% if obj.type=='fruit' %}selected{% endif %}>ผลไม้
+                                        </option>
+                                        <option value="object" {% if obj.type=='object' %}selected{% endif %}>สิ่งของ
+                                        </option>
+                                        <option value="food" {% if obj.type=='food' %}selected{% endif %}>อาหาร</option>
+                                        <option value="animal" {% if obj.type=='animal' %}selected{% endif %}>สัตว์
+                                        </option>
+                                        <option value="plant" {% if obj.type=='plant' %}selected{% endif %}>พืช</option>
+                                        <option value="vehicle" {% if obj.type=='vehicle' %}selected{% endif %}>ยานพาหนะ
+                                        </option>
+                                    </select>
+                                </div>
+                            </div>
+                            <button type="submit" class="btn btn-primary">บันทึกการแก้ไข</button>
+                            <button type="button" class="btn btn-secondary"
+                                onclick="cancelEditObject('{{ obj.id }}')">ยกเลิก</button>
+                        </form>
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+        </div>
+        </div>
+        
+        <script>
+            function editNoun(id, nouns, type) {
+                document.getElementById('nouns-' + id).value = nouns;
+                document.getElementById('type-' + id).value = type;
+                document.getElementById('row-' + id).style.display = 'none';
+                document.getElementById('edit-row-' + id).style.display = 'table-row';
+            }
+
+            function cancelEditNoun(id) {
+                document.getElementById('row-' + id).style.display = '';
+                document.getElementById('edit-row-' + id).style.display = 'none';
+            }
+
+            function editClassifier(id, classifier, type, mathsym) {
+                document.getElementById('name-' + id).value = classifier;
+                document.getElementById('type-' + id).value = type;
+                document.getElementById('mathsym-' + id).value = mathsym;
+                document.getElementById('classifier-row-' + id).style.display = 'none';
+                document.getElementById('classifier-edit-row-' + id).style.display = 'table-row';
+            }
+
+            function cancelEditClassifier(id) {
+                document.getElementById('classifier-row-' + id).style.display = '';
+                document.getElementById('classifier-edit-row-' + id).style.display = 'none';
+            }
+
+            function editProblem(id, pattern, type, mathsym) {
+                document.getElementById('pattern-' + id).value = pattern;
+                document.getElementById('type-' + id).value = type;
+                document.getElementById('mathsym-' + id).value = mathsym;
+                document.getElementById('problem-row-' + id).style.display = 'none';
+                document.getElementById('problem-edit-row-' + id).style.display = 'table-row';
+            }
+
+            function cancelEditProblem(id) {
+                document.getElementById('problem-row-' + id).style.display = '';
+                document.getElementById('problem-edit-row-' + id).style.display = 'none';
+            }
+
+            function editVerb(id, verb, mathsym) {
+                    document.getElementById('verb-' + id).value = verb;
+                    document.getElementById('mathsym-' + id).value = mathsym;
+                    document.getElementById('verb-row-' + id).style.display = 'none';
+                    document.getElementById('verb-edit-row-' + id).style.display = 'table-row';
+                }
+
+                function cancelEditVerb(id) {
+                    document.getElementById('verb-row-' + id).style.display = '';
+                    document.getElementById('verb-edit-row-' + id).style.display = 'none';
+                }
+            function editObject(id, nouns, type) {
+                    document.getElementById('nouns-' + id).value = nouns;
+                    document.getElementById('type-' + id).value = type;
+                    document.getElementById('object-row-' + id).style.display = 'none';
+                    document.getElementById('object-edit-row-' + id).style.display = 'table-row';
+                }
+
+                function cancelEditObject(id) {
+                    document.getElementById('object-row-' + id).style.display = '';
+                    document.getElementById('object-edit-row-' + id).style.display = 'none';
+                }
+
+        </script>
+
+        {% endblock %}
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

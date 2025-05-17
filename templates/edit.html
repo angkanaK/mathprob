@@ -1,0 +1,47 @@
+{% extends "base.html" %}
+
+{% block content %}
+<h1 class="display-3 text-center">Edit Problem</h1>
+<form action="{{ url_for('edit') }}" method="post">
+    <div class="mb-3">
+        <label for="edited_problem" class="form-label">แก้ไขโจทย์</label>
+        <textarea class="form-control" id="edited_problem" name="edited_problem" rows="3">{{ problem }}</textarea>
+    </div>
+    <input type="hidden" name="problem_to_edit" value="{{ problem }}">
+
+    <div class="mb-3">
+        <label for="fruit_problem_select" class="form-label">เลือกชนิดผลไม้</label>
+        <select class="form-select" id="fruit_problem_select" name="fruit_problem_select">
+            {% for fruit_problem in fruit_problems %}
+                <option value="{{ fruit_problem }}">{{ fruit_problem }}</option>
+            {% endfor %}
+        </select>        
+    </div>
+    
+
+    <div class="mb-3">
+        <label for="target_word_select" class="form-label">เลือกคำที่ต้องการแทนที่</label>
+        <select class="form-select" id="target_word_select" name="target_word_select">
+            {% for word in ["ผล", "ลูก"] %}
+                {% if word in problem %}
+                    <option value="{{ word }}">{{ word }}</option>
+                {% endif %}
+            {% endfor %}
+        </select>
+    </div>
+
+    <div class="mb-3">
+        <label for="replace_word_select" class="form-label">เลือกคำที่จะแทนที่</label>
+        <select class="form-select" id="replace_word_select" name="replace_word_select">
+            <option value="ผล">ผล</option>
+            <option value="ลูก">ลูก</option>
+        </select>
+    </div>
+
+    <button type="submit" class="btn btn-primary">บันทึกการเปลี่ยนแปลง</button>
+</form>
+{% endblock %}
+
+
+
+

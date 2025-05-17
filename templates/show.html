@@ -1,0 +1,195 @@
+{% extends "base.html" %}
+
+{% block content %}
+<h1 class="display-3 text-center">Math Problem Generator</h1>
+
+<link rel="stylesheet" href="http://ajax.googleapis.com/ajax/libs/jqueryui/1.8.16/themes/base/jquery-ui.css">
+<style>
+	/* Dropdown Button */
+	.dropbtn {
+		background-color: #04AA6D;
+		color: white;
+		padding: 16px;
+		font-size: 16px;
+		border: none;
+	}
+
+	/* The container <div> - needed to position the dropdown content */
+	.dropdown {
+		position: absolute;
+		display: inline-block;
+	}
+
+	/* Dropdown Content (Hidden by Default) */
+	.dropdown-content {
+		display: none;
+		position: absolute;
+		background-color: #f1f1f1;
+		box-shadow: 0px 8px 16px 0px rgba(0, 0, 0, 0.2);
+		z-index: 1;
+		width: 200px;
+		height: 300px;
+		overflow: scroll;
+	}
+
+	/* Links inside the dropdown */
+	.dropdown-content a {
+		color: black;
+		padding: 12px 16px;
+		text-decoration: none;
+		display: block;
+	}
+
+	/* Change color of dropdown links on hover */
+	.dropdown-content a:hover {
+		background-color: #ddd;
+	}
+
+	/* Show the dropdown menu on hover */
+	.dropdown:hover .dropdown-content {
+		display: block;
+	}
+
+	.ui-widget-overlay {
+		position: absolute;
+		top: 0;
+		left: 0;
+		width: 100%;
+		height: 100%;
+		background: #aaaaaa;
+		opacity: 0.3;
+	}
+
+	.popup {
+		display: none;
+		background-color: #f09494;
+	}
+
+	.popup2 {
+		display: none;
+		background-color: #f09494;
+	}
+
+	/* Accordion and search styling */
+	.accordion-button {
+		font-weight: bold;
+		color: #0044cc;
+	}
+
+	.accordion-body {
+		background-color: #f9f9f9;
+	}
+
+	.highlight {
+		background-color: #ffeb3b;
+	}
+</style>
+
+<!-- ฟอร์มกรอกประโยคสัญลักษณ์ -->
+<div id="symbolInput" class="container mt-3">
+	<div class="row">
+		<div class="col-md-12">
+		</div>
+	</div>
+
+	<!-- แสดงประโยคที่ผู้ใช้ป้อนมา -->
+	{% if symsentences %}
+	<div class="alert alert-info mt-3">
+		<strong>ประโยคสัญลักษณ์ที่คุณกรอก:</strong> {{ symsentences }} <br>
+		<strong>ประเภทที่คุณเลือก:</strong> {{ problem_type }}
+	</div>
+	{% endif %}
+</div>
+
+<!-- แถบค้นหา -->
+<div class="container mt-4">
+	<input type="text" id="searchInput" class="form-control" placeholder="ค้นหาชื่อชุดที่ต้องการ...">
+</div>
+
+<!-- เริ่มต้น Accordion -->
+<div class="container mt-4">
+	<div class="accordion" id="problemAccordion">
+		{% if data and data.sets %}
+		{% for set_idx, problem_set in enumerate(data.sets) %}
+		<div class="accordion-item">
+			<h2 class="accordion-header" id="heading{{ set_idx }}">
+				<button class="accordion-button collapsed" type="button" data-bs-toggle="collapse"
+					data-bs-target="#collapse{{ set_idx }}" aria-expanded="false" aria-controls="collapse{{ set_idx }}">
+					ชุดที่ {{ set_idx + 1 }} - บันทึกเมื่อ {{ problem_set.date }}
+				</button>
+			</h2>
+			<div id="collapse{{ set_idx }}" class="accordion-collapse collapse" aria-labelledby="heading{{ set_idx }}"
+				data-bs-parent="#problemAccordion">
+				<div class="accordion-body">
+					<ul>
+						{% for idx, problem in enumerate(problem_set.problems) %}
+						<li class="problem-text">
+							<p><strong>{{ idx + 1 }})</strong> {{ problem|safe }}</p>
+							<p class="answer-text">ตอบ: {{ problem_set.answers[idx] }} {{ problem_set.units[idx] }}</p>
+						</li>
+						{% endfor %}
+					</ul>
+					<!-- ปุ่มสำหรับบันทึกและลบ -->
+					<form action="{{ url_for('d') }}" method="post" class="d-inline">
+						<input type="hidden" name="set_idx" value="{{ set_idx }}">
+						<button type="submit" class="btn btn-primary">บันทึกชุดนี้เป็น DOCX</button>
+					</form>
+					<form action="{{ url_for('delete_set', set_idx=set_idx) }}" method="post" class="d-inline">
+						<button type="submit" class="btn btn-danger">ลบ</button>
+					</form>
+				</div>
+			</div>
+		</div>
+		{% endfor %}
+		{% else %}
+		<p>ยังไม่มีชุดโจทย์ที่บันทึก</p>
+		{% endif %}
+	</div>
+</div>
+
+<!-- ส่วนสคริปต์สำหรับการจัดการ popups -->
+<script src="https://code.jquery.com/jquery-3.7.1.min.js"
+	integrity="sha256-/JqT3SQfawRcv/BIHPThkBvs0OEvtFFmqPF/lYI/Cxo=" crossorigin="anonymous"></script>
+<script src="https://code.jquery.com/ui/1.13.3/jquery-ui.min.js"
+	integrity="sha256-sw0iNNXmOJbQhYFuC9OF2kOlD5KQKe1y5lfBn4C9Sjg=" crossorigin="anonymous"></script>
+<script>
+	/* ฟังก์ชันสำหรับการค้นหาโจทย์ */
+	$(document).ready(function () {
+		$("#searchInput").on("keyup", function () {
+			var searchText = $(this).val().toLowerCase();
+
+			$(".accordion-item").each(function () {
+				var setName = $(this).find(".accordion-button").text().toLowerCase();
+				if (setName.includes(searchText)) {
+					$(this).show();
+				} else {
+					$(this).hide();
+				}
+			});
+		});
+	});
+
+	function showSymbolInput() {
+		document.getElementById('symbolInput').classList.remove('d-none');
+		document.getElementById('randomInput').classList.add('d-none');
+	}
+
+	function showRandomInput() {
+		document.getElementById('randomInput').classList.remove('d-none');
+		document.getElementById('symbolInput').classList.add('d-none');
+	}
+
+	function showAnswer(idx) {
+		// ค้นหาคำตอบที่ถูกซ่อนอยู่
+		var answerElement = document.getElementById('answer_' + idx);
+
+		// สลับการแสดง/ซ่อนคำตอบ
+		if (answerElement.style.display === "none") {
+			answerElement.style.display = "block"; // แสดงคำตอบ
+		} else {
+			answerElement.style.display = "none"; // ซ่อนคำตอบ
+		}
+	}
+</script>
+
+{% endblock %}
