@@ -17,7 +17,7 @@
 
 ## เทคโนโลยีที่ใช้ (Tech Stack)
 - HTML, CSS, JavaScript   
-- Python (Flask) MySQL
-- 
+- Python (Flask) 
+- MySQL
 ## สถานะโปรเจกต์ (Status)
 ⚠️ อยู่ระหว่างพัฒนา — บางฟีเจอร์ยังไม่สมบูรณ์เต็มที่
